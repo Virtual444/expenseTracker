@@ -2,108 +2,212 @@
 <html>
 <head>
   <title>Expense Tracker</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+
   <style>
     .container {
-      max-width: 400px;
+      max-width: 500px;
       margin: 20px auto;
       padding: 20px;
-      border: 1px solid #ccc;
+      border: 1px solid #0a0a0a;
       border-radius: 4px;
     }
+    .heading{
+      text-align: center;
+    }
+
+    table{
+      border-collapse: collapse;
+      width: 500px;
+      border: 1px solid black;
+    }
+    th, td {
+    border: 1px solid black;
+    padding: 8px;
+    text-align: center; 
+  }
+  th {
+    background-color: #ab98e0;
+  }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Expense Tracker</h2>
+    <h1 class="heading">Expense Tracker</h1>
     <form id="expenseForm">
+
       <label for="expenseName">Expense Name:</label>
-      <input type="text" id="expenseName" required><br>
+      <input type="text" id="expenseName" required><br><br>
       <label for="expenseAmount">Expense Amount:</label>
-      <input type="number" id="expenseAmount" required><br>
-      <button type="submit">Add Expense</button>
+      <input type="number" id="expenseAmount" required><br><br>
+      <button type="submit" >Add Expense</button>
+      <br><br>
+
+
+
+      <table>
+        
+          <tr>
+            <th>Expense Name</th>
+            <th>Expense Price</th>
+            <th>Manage Expense</th>
+          </tr>
+          <tbody id="expenseTableBody"></tbody>
+
+      </table>
+
+      
+      
     </form>
     <h3>Total Expenses: $<span id="totalExpenses">0</span></h3>
-    <ul id="expenseList"></ul>
+    
   </div>
-
+  
   <script>
-    let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
-    let editIndex = -1;
+    window.addEventListener('load', function() {
+      populateTable();
+    });
+
 
     const expenseForm = document.getElementById('expenseForm');
-    const expenseNameInput = document.getElementById('expenseName');
-    const expenseAmountInput = document.getElementById('expenseAmount');
-    const totalExpenses = document.getElementById('totalExpenses');
-    const expenseList = document.getElementById('expenseList');
+  const expenseTableBody = document.getElementById('expenseTableBody');
+  const totalExpensesSpan = document.getElementById('totalExpenses');
+  let totalExpenses = 0;
 
-    function updateTotalExpenses() {
-      const total = expenses.reduce((acc, expense) => acc + expense.amount, 0);
-      totalExpenses.textContent = total.toFixed(2);
+  expenseForm.addEventListener('submit', function(event) {
+    addExpense(event);
+  });
+
+  
+  function populateTable() {
+    for (let i = 0; i < localStorage.length; i++) {
+      const entryKey = localStorage.key(i);
+      const dataJSON = localStorage.getItem(entryKey);
+      const data = JSON.parse(dataJSON);
+      if (data && typeof data.amount === 'number') {
+        const newRow = document.createElement('tr');
+        newRow.setAttribute('data-entry-key', entryKey);
+        const nameCell = document.createElement('td');
+        nameCell.textContent = data.name;
+        newRow.appendChild(nameCell);
+        const amountCell = document.createElement('td');
+        amountCell.textContent = `$${data.amount.toFixed(2)}`;
+        newRow.appendChild(amountCell);
+        
+        
+        const manageCell = document.createElement('td');
+        
+        
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.addEventListener('click', function(event) {
+          editExpense(entryKey, event);
+        });
+        manageCell.appendChild(editButton);
+        
+        
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.addEventListener('click', function() {
+          deleteExpense(entryKey, data.amount);
+        });
+        manageCell.appendChild(deleteButton);
+        
+        newRow.appendChild(manageCell);
+
+        expenseTableBody.appendChild(newRow);
+        totalExpenses += data.amount;
+      }
+    }
+    totalExpensesSpan.textContent = `$${totalExpenses.toFixed(2)}`;
+  }
+
+
+  function editExpense(entryKey,event) {
+    event.preventDefault();
+    
+    
+    const rowToUpdate = document.querySelector(`[data-entry-key="${entryKey}"]`);
+      const dataJSON = localStorage.getItem(entryKey);
+      const data = JSON.parse(dataJSON);
+
+      document.getElementById('expenseName').value = data.name;
+      document.getElementById('expenseAmount').value = data.amount;
+
+      const saveButton = document.createElement('button');
+      saveButton.textContent = 'Save Changes';
+      saveButton.type = 'button';
+      saveButton.addEventListener('click', function() {
+        saveChanges(entryKey);
+      });
+
+      const addButton = document.querySelector('#expenseForm button[type="submit"]');
+      addButton.parentNode.replaceChild(saveButton, addButton);
     }
 
-    function addExpenseToList(expense, index) {
-      const li = document.createElement('li');
-      li.textContent = `${expense.name}: $${expense.amount.toFixed(2)}`;
+    function saveChanges(entryKey) {
+      const newName = document.getElementById('expenseName').value;
+      const newAmountInput = document.getElementById('expenseAmount');
+      const newAmount = parseFloat(newAmountInput.value);
 
-      const editButton = document.createElement('button');
-      editButton.textContent = 'Edit';
-      editButton.addEventListener('click', () => handleEditExpense(index));
+      if (newName && !isNaN(newAmount)) {
+        const data = {
+          name: newName,
+          amount: newAmount
+        };
 
-      const deleteButton = document.createElement('button');
-      deleteButton.textContent = 'Delete';
-      deleteButton.addEventListener('click', () => handleDeleteExpense(index));
+        localStorage.setItem(entryKey, JSON.stringify(data));
 
-      li.appendChild(editButton);
-      li.appendChild(deleteButton);
-      expenseList.appendChild(li);
-    }
+        expenseTableBody.innerHTML = '';
+        populateTable();
+        location.reload();
 
-    function renderExpenses() {
-      expenseList.innerHTML = '';
-      expenses.forEach(addExpenseToList);
-      updateTotalExpenses();
-    }
-
-    function saveExpenses() {
-      localStorage.setItem('expenses', JSON.stringify(expenses));
-    }
-
-    function handleFormSubmit(event) {
-      event.preventDefault();
-      const name = expenseNameInput.value.trim();
-      const amount = parseFloat(expenseAmountInput.value);
-      if (name && amount) {
-        if (editIndex === -1) {
-          const expense = { name, amount };
-          expenses.push(expense);
-        } else {
-          expenses[editIndex].name = name;
-          expenses[editIndex].amount = amount;
-          editIndex = -1;
-        }
-        renderExpenses();
-        saveExpenses();
-        expenseNameInput.value = '';
-        expenseAmountInput.value = '';
       }
     }
 
-    function handleEditExpense(index) {
-      const expense = expenses[index];
-      expenseNameInput.value = expense.name;
-      expenseAmountInput.value = expense.amount;
-      editIndex = index;
+
+  function deleteExpense(entryKey, expenseAmount) {
+    
+    localStorage.removeItem(entryKey);
+
+    
+    totalExpenses -= expenseAmount;
+
+    
+    const rowToDelete = document.querySelector(`[data-entry-key="${entryKey}"]`);
+    rowToDelete.parentNode.removeChild(rowToDelete);
+
+    
+    totalExpensesSpan.textContent = `$${totalExpenses.toFixed(2)}`;
+  }
+
+
+  
+
+  function addExpense(event) {
+    event.preventDefault();
+
+
+    const name = document.getElementById('expenseName').value;
+    const amountInput = document.getElementById('expenseAmount');
+    const amount = parseFloat(amountInput.value);
+    const entryKey = `entry_${Date.now()}`;
+    
+    if (name && !isNaN(amount)) {
+      const data = {
+        name: name,
+        amount: amount
+      };
+
+      const dataJSON = JSON.stringify(data);
+      localStorage.setItem(entryKey, dataJSON);
+
+      location.reload();
+
     }
+  }
 
-    function handleDeleteExpense(index) {
-      expenses.splice(index, 1);
-      renderExpenses();
-      saveExpenses();
-    }
 
-    expenseForm.addEventListener('submit', handleFormSubmit);
-
-    renderExpenses();
   </script>
 </body>
 </html>
