@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+   
   <title>Expense Tracker</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  
 
   <style>
     .container {
-      max-width: 500px;
+      max-width: 600px;
       margin: 20px auto;
       padding: 20px;
       border: 1px solid #0a0a0a;
@@ -33,14 +35,14 @@
 </head>
 <body>
   <div class="container">
-    <h1 class="heading">Expense Tracker</h1>
-    <form id="expenseForm">
+    <h1 class="heading" style="text-align: center;">Expense Tracker</h1>
+    <form id="expenseForm" action="#">
 
-      <label for="expenseName">Expense Name:</label>
-      <input type="text" id="expenseName" required><br><br>
-      <label for="expenseAmount">Expense Amount:</label>
-      <input type="number" id="expenseAmount" required><br><br>
-      <button type="submit" >Add Expense</button>
+      <label for="expenseName" style="font-weight: bold;">Expense Name:</label>
+      <input type="text" id="expenseName" style="font-weight: bold;" required><br><br>
+      <label for="expenseAmount" style="font-weight: bold;">Expense Amount:</label>
+      <input type="number" id="expenseAmount"  style="font-weight: bold;" required><br><br>
+      <button type="submit" class="col-md-4 text-center" >Add Expense</button>
       <br><br>
 
 
@@ -48,9 +50,10 @@
       <table>
         
           <tr>
-            <th>Expense Name</th>
-            <th>Expense Price</th>
-            <th>Manage Expense</th>
+            <th scope="col">  # </th>
+            <th scope="col" >Expense Name</th>
+            <th scope="col" >Expense Price</th>
+            <th scope="col" >Manage Expense</th>
           </tr>
           <tbody id="expenseTableBody"></tbody>
 
@@ -59,10 +62,11 @@
       
       
     </form>
-    <h3>Total Expenses: $<span id="totalExpenses">0</span></h3>
+    <br>
+    <h3>Total Expenses: <span id="totalExpenses">0</span></h3>
     
   </div>
-  
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script>
     window.addEventListener('load', function() {
       populateTable();
@@ -78,67 +82,101 @@
     addExpense(event);
   });
 
+  function calculateTotalExpenses(expenses) {
+      let total = 0;
+      expenses.forEach(expense => {
+        total += expense.amount;
+      });
+      return total;
+    }
+
   
   function populateTable() {
-    for (let i = 0; i < localStorage.length; i++) {
-      const entryKey = localStorage.key(i);
-      const dataJSON = localStorage.getItem(entryKey);
-      const data = JSON.parse(dataJSON);
-      if (data && typeof data.amount === 'number') {
+
+    axios.get('https://crudcrud.com/api/7e566c7324a245be8367f1f2f23e1ac5/expenses')
+
+    .then(response => {
+        const expenses = response.data;
+        console.log(expenses);
+        expenses.forEach((expense, index) => {
+        const newRow = createTableRow(expense, index + 1 );
+        
+        expenseTableBody.appendChild(newRow);
+        // totalExpenses +=expense.amount;
+        });
+        totalExpenses = calculateTotalExpenses(expenses);
+        totalExpensesSpan.textContent = `$${totalExpenses.toFixed(2)}`;
+    })
+    .catch(err => {
+        console.log(err);
+    });
+
+}
+        
+    function createTableRow(expense, index) {
         const newRow = document.createElement('tr');
-        newRow.setAttribute('data-entry-key', entryKey);
-        const nameCell = document.createElement('td');
-        nameCell.textContent = data.name;
-        newRow.appendChild(nameCell);
-        const amountCell = document.createElement('td');
-        amountCell.textContent = `$${data.amount.toFixed(2)}`;
-        newRow.appendChild(amountCell);
-        
-        
-        const manageCell = document.createElement('td');
-        
-        
-        const editButton = document.createElement('button');
+    newRow.setAttribute('data-entry-key', expense._id); 
+     
+
+    const numberCell = document.createElement('td');
+    numberCell.textContent = index;
+    newRow.appendChild(numberCell);
+
+    const nameCell = document.createElement('td');
+    nameCell.textContent = expense.name;
+    newRow.appendChild(nameCell);
+
+    const amountCell = document.createElement('td');
+    if (typeof expense.amount === 'number') {
+      amountCell.textContent = `$${expense.amount.toFixed(2)}`;
+    } else {
+      amountCell.textContent = 'Invalid Amount';
+    }
+     newRow.appendChild(amountCell);
+
+     const manageCell = document.createElement('td');
+     const editButton = document.createElement('button');
         editButton.textContent = 'Edit';
         editButton.addEventListener('click', function(event) {
-          editExpense(entryKey, event);
+          editExpense(expense, event);
         });
+        
         manageCell.appendChild(editButton);
         
         
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'Delete';
         deleteButton.addEventListener('click', function() {
-          deleteExpense(entryKey, data.amount);
+          deleteExpense(expense._id, expense.amount);
         });
         manageCell.appendChild(deleteButton);
         
         newRow.appendChild(manageCell);
 
-        expenseTableBody.appendChild(newRow);
-        totalExpenses += data.amount;
-      }
+
+
+    // ... (manageCell with edit and delete buttons) ...
+
+    return newRow;
+
     }
-    totalExpensesSpan.textContent = `$${totalExpenses.toFixed(2)}`;
-  }
-
-
-  function editExpense(entryKey,event) {
+  
+  function editExpense(expense, event) {
     event.preventDefault();
     
-    
-    const rowToUpdate = document.querySelector(`[data-entry-key="${entryKey}"]`);
-      const dataJSON = localStorage.getItem(entryKey);
-      const data = JSON.parse(dataJSON);
-
-      document.getElementById('expenseName').value = data.name;
-      document.getElementById('expenseAmount').value = data.amount;
-
+    const rowToUpdate = document.querySelector(`[data-entry-key="${expense._id}"]`);
+  const nameCell = rowToUpdate.querySelector('[data-name-cell]');
+  const amountCell = rowToUpdate.querySelector('[data-amount-cell]');
+  
+  
+  // Populate form fields with existing data
+  document.getElementById('expenseName').value = expense.name;
+  document.getElementById('expenseAmount').value = (expense.amount);
       const saveButton = document.createElement('button');
       saveButton.textContent = 'Save Changes';
       saveButton.type = 'button';
       saveButton.addEventListener('click', function() {
-        saveChanges(entryKey);
+        saveChanges(expense._id);
       });
 
       const addButton = document.querySelector('#expenseForm button[type="submit"]');
@@ -146,40 +184,57 @@
     }
 
     function saveChanges(entryKey) {
-      const newName = document.getElementById('expenseName').value;
-      const newAmountInput = document.getElementById('expenseAmount');
-      const newAmount = parseFloat(newAmountInput.value);
+        const newName = document.getElementById('expenseName').value;
+  const newAmountInput = document.getElementById('expenseAmount');
+  const newAmount = parseFloat(newAmountInput.value);
 
-      if (newName && !isNaN(newAmount)) {
-        const data = {
-          name: newName,
-          amount: newAmount
-        };
+  if (newName && !isNaN(newAmount)) {
+    const data = {
+      name: newName,
+      amount: newAmount
+    };
 
-        localStorage.setItem(entryKey, JSON.stringify(data));
-
+    axios.put(`https://crudcrud.com/api/7e566c7324a245be8367f1f2f23e1ac5/expenses/${entryKey}`, data)
+      .then(response => {
+        console.log('Expense updated successfully:', response.data);
+        document.getElementById('expenseName').value = '';
+        newAmountInput.value = '';
         expenseTableBody.innerHTML = '';
         populateTable();
-        location.reload();
 
-      }
-    }
+
+    })
+      .catch(error => {
+        console.error('Error updating expense:', error);
+      });
+  }
+}
+
 
 
   function deleteExpense(entryKey, expenseAmount) {
     
-    localStorage.removeItem(entryKey);
+   
+    
 
     
-    totalExpenses -= expenseAmount;
+    axios.delete(`https://crudcrud.com/api/7e566c7324a245be8367f1f2f23e1ac5/expenses/${entryKey}`) 
+    .then(response => {
+      console.log(response.data);
+      totalExpenses -= expenseAmount;
+          totalExpensesSpan.textContent = `$${totalExpenses.toFixed(2)}`;
+          expenseTableBody.innerHTML = '';
+          populateTable();
+    })
 
-    
-    const rowToDelete = document.querySelector(`[data-entry-key="${entryKey}"]`);
-    rowToDelete.parentNode.removeChild(rowToDelete);
+    .catch(error => {
+      console.error('Error deleting expense:', error);
+    });
+   
 
-    
-    totalExpensesSpan.textContent = `$${totalExpenses.toFixed(2)}`;
-  }
+
+}
+  
 
 
   
@@ -199,10 +254,28 @@
         amount: amount
       };
 
-      const dataJSON = JSON.stringify(data);
-      localStorage.setItem(entryKey, dataJSON);
+      axios.post('https://crudcrud.com/api/7e566c7324a245be8367f1f2f23e1ac5/expenses', data, {
+      headers: {
+        'Content-Type': 'application/json' 
+      }
+    })
+      .then( response => {
+        console.log(response.data);
+        
+        document.getElementById('expenseName').value = '';
+        amountInput.value = '';
+        expenseTableBody.innerHTML = '';
+        populateTable();
+       
 
-      location.reload();
+      })
+      .catch(err => {
+        console.log(err);
+      });
+
+      
+
+      
 
     }
   }
